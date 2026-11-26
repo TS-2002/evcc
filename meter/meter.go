@@ -147,6 +147,9 @@ func NewConfigurableFromConfig(ctx context.Context, other map[string]any) (api.M
 			if cc.BatteryMode == nil {
 				return nil, errors.New("battery power: requires batterymode")
 			}
+			if powerLimiter == nil {
+				return nil, errors.New("battery power: requires maxchargepower and maxdischargepower")
+			}
 
 			powerS, err := cc.BatteryPower.FloatSetter(ctx, "batteryPower")
 			if err != nil {

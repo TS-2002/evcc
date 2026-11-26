@@ -172,3 +172,72 @@ func TestImportBudget(t *testing.T) {
 func TestBatteryPowerShares(t *testing.T) {
 	assert.Equal(t, map[string]float64{"a": 2000, "b": 2000}, batteryPowerShares([]string{"a", "b"}, 4000))
 }
+
+// TestBatteryGridChargePowerReadFailed guards that a failed battery power read (reported as 0 W) releases to normal
+func TestBatteryGridChargePowerReadFailed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	bat, batCon, _ := powerBattery(ctrl)
+	batCon.EXPECT().SetBatteryMode(api.BatteryNormal)
+
+	site := &Site{
+		log:           util.NewLogger("foo"),
+		batteryMeters: []config.Device[api.Meter]{config.NewStaticDevice(config.Named{Name: "bat"}, bat)},
+		batteryMode:   api.BatteryNormal,
+		circuit:       powerCircuit(ctrl, 8000),
+		metersValid:   true,
+		siteState: siteState{battery: types.BatteryState{
+			Devices: []types.Measurement{{Name: "bat", PowerFailed: true}},
+		}},
+	}
+
+	site.updateBatteryMode(true, false, api.Rate{})
+	assert.Equal(t, api.BatteryNormal, site.GetBatteryMode())
+
+	ctrl.Finish()
+}
+
+// TestBatteryGridChargePowerRiseSlow guards that the setpoint falls at once but rises only when two cycles agree,
+// so measurement noise between grid and battery reads never adds headroom
+func TestBatteryGridChargePowerRiseSlow(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	bat, batCon, batPow := powerBattery(ctrl)
+	batCon.EXPECT().SetBatteryMode(api.BatteryNormal)
+
+	circuitPower := 8000.0 // headroom 5000 with the battery's 3 kW
+	c := api.NewMockCircuit(ctrl)
+	c.EXPECT().HasMeter().Return(true).AnyTimes()
+	c.EXPECT().EffectiveMaxPower().Return(10000.0).AnyTimes()
+	c.EXPECT().GetChargePower().DoAndReturn(func() float64 { return circuitPower }).AnyTimes()
+	c.EXPECT().GetMaxCurrent().Return(0.0).AnyTimes()
+	c.EXPECT().GetMaxPhaseCurrent().Return(0.0).AnyTimes()
+
+	site := &Site{
+		log:           util.NewLogger("foo"),
+		batteryMeters: []config.Device[api.Meter]{config.NewStaticDevice(config.Named{Name: "bat"}, bat)},
+		batteryMode:   api.BatteryNormal,
+		circuit:       c,
+		metersValid:   true,
+		siteState:     siteState{battery: types.BatteryState{Power: -3000}},
+	}
+
+	gomock.InOrder(
+		batPow.EXPECT().SetBatteryPower(-5000.0),
+		batPow.EXPECT().SetBatteryPower(-2000.0),
+		batPow.EXPECT().SetBatteryPower(-5000.0),
+	)
+
+	site.updateBatteryMode(true, false, api.Rate{}) // 5000
+
+	circuitPower = 11000 // headroom 2000: falls at once
+	site.updateBatteryMode(true, false, api.Rate{})
+
+	circuitPower = 8000 // headroom 5000 once: stays at 2000
+	site.updateBatteryMode(true, false, api.Rate{})
+
+	// headroom 5000 again: rises
+	site.updateBatteryMode(true, false, api.Rate{})
+
+	ctrl.Finish()
+}

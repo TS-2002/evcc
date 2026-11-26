@@ -22,6 +22,7 @@ type Measurement struct {
 	MinSoc        *float64    `json:"minSoc,omitempty"` // battery soc limits
 	MaxSoc        *float64    `json:"maxSoc,omitempty"`
 	Controllable  *bool       `json:"controllable,omitempty"`
+	PowerFailed   bool        `json:"-"` // power read failed this cycle, Power is not a measurement
 	Modes         []string    `json:"modes,omitempty"`
 	Suggestion    *Suggestion `json:"suggestion,omitempty"`
 }

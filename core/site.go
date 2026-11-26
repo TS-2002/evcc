@@ -121,6 +121,7 @@ type Site struct {
 	batteryPowerTarget       *float64                        // Signed grid charge power of power controlled batteries (positive charges), nil = inactive
 	batteryPowerWritten      map[string]batteryPowerSetpoint // Last setpoint written per battery
 	metersValid              bool                            // Meters read without error in this cycle
+	batteryPowerPrev         *float64                        // Battery power target computed in the previous cycle
 	batteryMode              api.BatteryMode                 // Battery mode (runtime only, not persisted)
 	batteryModeExternal      api.BatteryMode                 // Battery mode (external, runtime only, not persisted)
 	batteryModeExternalTimer time.Time                       // Battery mode timer for external control
@@ -696,6 +697,7 @@ func (site *Site) collectMeters(key string, meters []config.Device[api.Meter]) [
 			mm[i].Power = power
 			site.log.DEBUG.Printf("%s %d power: %.0fW", key, i+1, power)
 		} else if !errors.Is(err, api.ErrNotAvailable) {
+			mm[i].PowerFailed = true
 			if b.Len() > 0 {
 				site.log.ERROR.Println("\n" + b.String())
 			}

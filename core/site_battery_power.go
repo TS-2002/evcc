@@ -85,6 +85,13 @@ func (site *Site) batteryChargeTarget(chargeLimit, dischargeLimit float64) (floa
 	res := chargeLimit
 	state := site.state()
 
+	// a failed battery power read reports 0 W, which would count as headroom
+	for _, d := range state.battery.Devices {
+		if d.PowerFailed {
+			return 0, false
+		}
+	}
+
 	// the battery's own draw is part of the measured grid and circuit power
 	charging := -state.battery.Power
 

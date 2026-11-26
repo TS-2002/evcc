@@ -21,4 +21,6 @@ const (
 	CapabilityDim // dim
 	// EEG §9 curtailment support
 	CapabilityCurtail // curtail
+	// battery power setpoint support
+	CapabilityBatteryPower // battery-power
 )

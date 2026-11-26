@@ -116,13 +116,15 @@ type Site struct {
 	// cached measurement state, guarded by RWMutex
 	siteState
 
-	batteryMaxDischargePower *float64                   // Max discharge power of all battery meters
-	batteryChargeStopPower   float64                    // Battery charge power when load management last stopped grid charging
-	batteryChargeSetpoint    float64                    // Battery grid charge power allowed by load management, 0 = not power controlled
-	batteryMode              api.BatteryMode            // Battery mode (runtime only, not persisted)
-	batteryModeExternal      api.BatteryMode            // Battery mode (external, runtime only, not persisted)
-	batteryModeExternalTimer time.Time                  // Battery mode timer for external control
-	batteryModeApplied       map[string]api.BatteryMode // Battery mode last applied per battery meter
+	batteryMaxDischargePower *float64                        // Max discharge power of all battery meters
+	batteryChargeStopPower   float64                         // Battery charge power when load management last stopped grid charging
+	batteryPowerTarget       *float64                        // Signed grid charge power of power controlled batteries (positive charges), nil = inactive
+	batteryPowerWritten      map[string]batteryPowerSetpoint // Last setpoint written per battery
+	metersValid              bool                            // Meters read without error in this cycle
+	batteryMode              api.BatteryMode                 // Battery mode (runtime only, not persisted)
+	batteryModeExternal      api.BatteryMode                 // Battery mode (external, runtime only, not persisted)
+	batteryModeExternalTimer time.Time                       // Battery mode timer for external control
+	batteryModeApplied       map[string]api.BatteryMode      // Battery mode last applied per battery meter
 
 	optimizer optimizerState // optimizer runs, cached results and suggestions
 
@@ -1368,6 +1370,7 @@ func (site *Site) update(lp updater) {
 	site.applyHemsLimits()
 
 	state, err := site.updateMeters()
+	site.metersValid = err == nil
 	if err != nil {
 		site.log.ERROR.Println(err)
 	} else if sponsor.IsAuthorized() && optimizerEnabled() {

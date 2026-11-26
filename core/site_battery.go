@@ -84,9 +84,10 @@ func (site *Site) updateBatteryMode(batteryGridChargeActive, batteryGridDischarg
 		batteryMode = api.BatteryNormal
 	}
 
-	// load management: don't start grid charging without headroom, stop it when the circuit is over limit
+	// load management: don't start grid charging without headroom, stop it when the circuit is over limit.
+	// normal, not holddischarge: the device controls itself again and may discharge to relieve the circuit
 	if site.fromTo(batteryMode, api.BatteryCharge) && site.batteryChargeExceedsCircuit() {
-		batteryMode = api.BatteryHoldDischarge
+		batteryMode = api.BatteryNormal
 	}
 
 	// NOTE: applyBatteryMode is always called when charge or discharge mode is active to

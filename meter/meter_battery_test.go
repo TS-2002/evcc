@@ -60,10 +60,12 @@ func TestBatteryPower(t *testing.T) {
 
 	base := func() map[string]any {
 		return map[string]any{
-			"power":        map[string]any{"source": "const", "value": 0},
-			"soc":          map[string]any{"source": "const", "value": 42},
-			"batterymode":  js(`batteryMode`),
-			"batterymodes": []string{"normal", "charge"},
+			"power":             map[string]any{"source": "const", "value": 0},
+			"soc":               map[string]any{"source": "const", "value": 42},
+			"batterymode":       js(`batteryMode`),
+			"batterymodes":      []string{"normal", "charge"},
+			"maxchargepower":    5000,
+			"maxdischargepower": 3000,
 		}
 	}
 
@@ -99,6 +101,16 @@ func TestBatteryPower(t *testing.T) {
 
 		_, err := NewConfigurableFromConfig(ctx, cfg)
 		require.ErrorContains(t, err, "requires batterymode")
+	})
+
+	t.Run("requires power limits", func(t *testing.T) {
+		cfg := base()
+		delete(cfg, "maxchargepower")
+		delete(cfg, "maxdischargepower")
+		cfg["batterypower"] = js(`batteryPower`)
+
+		_, err := NewConfigurableFromConfig(ctx, cfg)
+		require.ErrorContains(t, err, "requires maxchargepower")
 	})
 
 	t.Run("optional", func(t *testing.T) {

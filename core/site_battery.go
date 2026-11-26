@@ -84,16 +84,17 @@ func (site *Site) updateBatteryMode(batteryGridChargeActive, batteryGridDischarg
 		batteryMode = api.BatteryNormal
 	}
 
-	// load management: a power controlled battery charges with exactly the headroom of the circuit and the
-	// slot's import budget, others don't start without headroom and stop when the circuit is over limit.
-	// normal, not holddischarge: the device controls itself again and may discharge to relieve the circuit
-	site.batteryChargeSetpoint = 0
+	// load management: power controlled batteries charge with exactly the headroom of the circuit and the
+	// slot's import budget, down to 0 W and to discharging when the circuit or the budget is exceeded. Without
+	// a valid measurement they are released to normal, the device controls itself again. Batteries without a
+	// setpoint keep the start/stop gate, released to normal instead of holddischarge.
+	site.batteryPowerTarget = nil
 	if site.fromTo(batteryMode, api.BatteryCharge) {
-		if site.batteryPowerControlled() {
-			if power := site.batteryChargeHeadroom(); power >= batteryMinChargePower {
-				site.batteryChargeSetpoint = power
+		if names, charge, discharge := site.powerBatteries(); len(names) > 0 {
+			if target, ok := site.batteryChargeTarget(charge, discharge); ok && site.metersValid {
+				site.batteryPowerTarget = &target
 			} else {
-				site.log.DEBUG.Printf("battery mode: no headroom for grid charging (%.0fW)", power)
+				site.log.DEBUG.Println("battery mode: no valid measurement for grid charging, releasing to normal")
 				batteryMode = api.BatteryNormal
 			}
 		} else if site.batteryChargeExceedsCircuit() {
@@ -364,8 +365,9 @@ func (site *Site) applyBatteryMode(mode api.BatteryMode) error {
 	devices := site.state().battery.Devices
 
 	var shares map[string]float64
-	if site.batteryChargeSetpoint > 0 {
-		shares = site.batteryChargeShares(site.batteryChargeSetpoint)
+	if target := site.batteryPowerTarget; target != nil {
+		names, _, _ := site.powerBatteries()
+		shares = batteryPowerShares(names, *target)
 	}
 
 	for i, dev := range site.batteryMeters {
@@ -395,19 +397,32 @@ func (site *Site) applyBatteryMode(mode api.BatteryMode) error {
 			}
 		}
 
-		// grid charging with a power setpoint, also while the mode is unchanged: written every cycle,
-		// the device holds it only for a limited time
+		// grid charging with a power setpoint, also while the mode is unchanged: written on change and
+		// refreshed before the device fallback expires
 		if share, ok := shares[dev.Config().Name]; ok && fromToCharge && deviceMode != api.BatteryHoldDischarge {
 			if bpc, ok := api.Cap[api.BatteryPowerController](meter); ok {
-				if err := bpc.SetBatteryPower(-share); err != nil {
+				name := dev.Config().Name
+
+				// entering power control: normal ends a running mode watchdog and restores the device's power caps
+				if site.batteryModeApplied[name] != api.BatteryCharge {
+					if err := batCtrl.SetBatteryMode(api.BatteryNormal); err != nil && !errors.Is(err, api.ErrNotAvailable) {
+						return err
+					}
+					delete(site.batteryPowerWritten, name)
+				}
+
+				written, err := site.writeBatteryPower(name, bpc, -share, time.Now())
+				if err != nil {
 					if !errors.Is(err, api.ErrNotAvailable) {
 						return err
 					}
 					continue
 				}
 
-				site.batteryModeApplied[dev.Config().Name] = api.BatteryCharge
-				site.log.DEBUG.Printf("set battery %s power: %.0fW", deviceTitleOrName(dev), -share)
+				site.batteryModeApplied[name] = api.BatteryCharge
+				if written {
+					site.log.DEBUG.Printf("set battery %s power: %.0fW", deviceTitleOrName(dev), -share)
+				}
 				continue
 			}
 		}

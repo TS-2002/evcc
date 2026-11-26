@@ -59,6 +59,8 @@ const (
 	flagBatteryModeDescription     = "Set battery mode (normal, holddischarge, charge, holdcharge, discharge)"
 	flagBatteryModeWait            = "battery-mode-wait"
 	flagBatteryModeWaitDescription = "Wait given duration during which potential watchdogs are active"
+	flagBatteryPower               = "battery-power"
+	flagBatteryPowerDescription    = "Set battery power in W (positive discharges, negative charges, 0 holds idle)"
 
 	flagCurrent            = "current"
 	flagCurrentDescription = "Set maximum current"

@@ -22,6 +22,7 @@ func init() {
 
 	meterCmd.Flags().StringP(flagBatteryMode, "b", "", flagBatteryModeDescription)
 	meterCmd.Flags().DurationP(flagBatteryModeWait, "w", 0, flagBatteryModeWaitDescription)
+	meterCmd.Flags().Float64(flagBatteryPower, 0, flagBatteryPowerDescription)
 	meterCmd.Flags().Bool(flagDiagnose, false, flagDiagnoseDescription)
 	meterCmd.Flags().IntP(flagCurtail, "u", -1, flagCurtailDescription)
 	meterCmd.Flags().IntP(flagDim, "m", -1, flagDimDescription)
@@ -72,6 +73,28 @@ func runMeter(cmd *cobra.Command, args []string) {
 				log.INFO.Println("waiting for:", d)
 				time.Sleep(d)
 			}
+		}
+	}
+
+	if cmd.Flag(flagBatteryPower).Changed {
+		flagUsed = true
+
+		power, err := cmd.Flags().GetFloat64(flagBatteryPower)
+		if err != nil {
+			log.FATAL.Fatalln(err)
+		}
+
+		for _, v := range config.Instances(meters) {
+			if b, ok := api.Cap[api.BatteryPowerController](v); ok {
+				if err := b.SetBatteryPower(power); err != nil {
+					log.FATAL.Fatalln("set battery power:", err)
+				}
+			}
+		}
+
+		if d, err := cmd.Flags().GetDuration(flagBatteryModeWait); d > 0 && err == nil {
+			log.INFO.Println("waiting for:", d)
+			time.Sleep(d)
 		}
 	}
 

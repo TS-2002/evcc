@@ -26,6 +26,7 @@ Site (orchestrator — core/site.go)
 - `Battery` — `Soc() (float64, error)` — 0-100%
 - `BatteryCapacity` — kWh
 - `BatteryController` — set charge/discharge/holddischarge mode
+- `BatteryPowerController` — set battery AC power in W (+ discharge, − charge), refreshed every cycle; mode `normal` hands control back
 
 ### Charger
 - `Charger` — `Status()`, `Enabled()`, `Enable(bool)`, `MaxCurrent(int64)`

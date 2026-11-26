@@ -12,8 +12,9 @@ rules conflict, the stricter one wins; when in doubt, stop and ask.
 ## Branches
 
 - `master`: mirror of `evcc-io/evcc` master. Never commit to it.
-- `zam-main`: our line = upstream master + Z'AM features. Device builds are
-  made from it. Never commit or push to it directly, never `--force`.
+- `zam-main`: our line = upstream master + Z'AM features. It is an
+  integration branch only and is never installed on a site. Never commit or
+  push to it directly, never `--force`.
   Changes only via pull request against `zam-main`; the repository owner
   decides merges.
 - Feature branches: `zam/<topic>`, branched from `zam-main`.
@@ -40,6 +41,12 @@ request names its spec.
 
 ## Operations
 
+- No evcc change reaches a site without a deliberate, checked decision for
+  that site: not an upstream sync, not a fork build, not an apt upgrade.
+- Only an explicit release tag can be installed, and each site pins its own
+  version. A new tag changes no site until its pin is raised.
+- Every upstream sync is its own pull request that lists upstream's breaking
+  changes and what they mean for the sites.
 - Fork builds go to one internal test site first; other sites only after a
   successful field test and approval.
 - Device access, sudo, restarts and updates on site hardware are done by

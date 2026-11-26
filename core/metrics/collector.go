@@ -135,11 +135,7 @@ func (c *Collector) advanceSlot(now time.Time) error {
 		// preceding slot boundary - false for the mid-slot first slot and
 		// for a slot reached after a data gap
 		if c.started.Equal(slotStart.Add(-tariff.SlotDuration)) {
-			// a restore that skipped whole slots dumps the downtime energy into
-			// this single slot, inflating it - a contiguous restart keeps the
-			// slot's meter delta time-correct, so only the former is recovered
-			recovered := c.restored && !c.started.Equal(c.lastSlot.Add(tariff.SlotDuration))
-			if err := c.persist(recovered); err != nil {
+			if err := c.persist(c.recovering()); err != nil {
 				return err
 			}
 			persisted = c.started
@@ -160,6 +156,12 @@ func (c *Collector) advanceSlot(now time.Time) error {
 		return nil
 	}
 	return fill(c.entity, persisted)
+}
+
+// recovering reports whether the current slot holds downtime catchup energy: a restore that
+// skipped whole slots inflates this slot, a contiguous restart keeps its meter delta time-correct.
+func (c *Collector) recovering() bool {
+	return c.restored && !c.started.Equal(c.lastSlot.Add(tariff.SlotDuration))
 }
 
 func (c *Collector) persist(recovered bool) error {

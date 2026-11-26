@@ -96,3 +96,11 @@ func (c *Collector) EnergyStats() (EnergyStats, error) {
 	res.Today = math.Round(res.Today + c.accu.Energy*1e3)
 	return res, nil
 }
+
+// SlotEnergy returns the running slot's import in kWh and the time since its start, false if the
+// slot was not observed from its start or holds downtime catchup energy
+func (c *Collector) SlotEnergy() (float64, time.Duration, bool) {
+	now := c.accu.clock.Now()
+	slotStart := now.Truncate(tariff.SlotDuration)
+	return c.accu.Energy, now.Sub(slotStart), c.started.Equal(slotStart) && !c.recovering()
+}

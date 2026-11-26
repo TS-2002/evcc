@@ -419,6 +419,35 @@ func (site *Site) SetResidualPower(power float64) error {
 	return nil
 }
 
+// GetGridImportLimit returns the grid import limit as 15-min average for battery grid charging in W (0 = disabled)
+func (site *Site) GetGridImportLimit() float64 {
+	site.RLock()
+	defer site.RUnlock()
+	return site.gridImportLimit
+}
+
+// SetGridImportLimit sets the grid import limit as 15-min average for battery grid charging in W (0 = disabled)
+func (site *Site) SetGridImportLimit(power float64) error {
+	if power < 0 {
+		return fmt.Errorf("invalid grid import limit: %g", power)
+	}
+
+	site.Lock()
+	changed := site.gridImportLimit != power
+	if changed {
+		site.gridImportLimit = power
+	}
+	site.Unlock()
+
+	if changed {
+		site.log.DEBUG.Println("set grid import limit:", power)
+		settings.SetFloat(keys.GridImportLimit, power)
+		site.publish(keys.GridImportLimit, power)
+	}
+
+	return nil
+}
+
 // GetGridExportLimit returns the static grid export power limit in W (0 = disabled)
 func (site *Site) GetGridExportLimit() float64 {
 	site.RLock()

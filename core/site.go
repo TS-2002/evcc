@@ -96,6 +96,7 @@ type Site struct {
 
 	// grid settings
 	gridExportLimit float64 // static grid export power limit in W, 0 = disabled
+	gridImportLimit float64 // grid import limit as 15-min average for battery grid charging in W, 0 = disabled
 
 	// forecast settings
 	solarAdjusted bool // adjust solar forecast to real production data
@@ -117,6 +118,7 @@ type Site struct {
 
 	batteryMaxDischargePower *float64                   // Max discharge power of all battery meters
 	batteryChargeStopPower   float64                    // Battery charge power when load management last stopped grid charging
+	batteryChargeSetpoint    float64                    // Battery grid charge power allowed by load management, 0 = not power controlled
 	batteryMode              api.BatteryMode            // Battery mode (runtime only, not persisted)
 	batteryModeExternal      api.BatteryMode            // Battery mode (external, runtime only, not persisted)
 	batteryModeExternalTimer time.Time                  // Battery mode timer for external control
@@ -492,6 +494,11 @@ func (site *Site) restoreSettings() error {
 	}
 	if v, err := settings.Float(keys.GridExportLimit); err == nil {
 		if err := site.SetGridExportLimit(v); err != nil {
+			return err
+		}
+	}
+	if v, err := settings.Float(keys.GridImportLimit); err == nil {
+		if err := site.SetGridImportLimit(v); err != nil {
 			return err
 		}
 	}
@@ -1501,6 +1508,7 @@ func (site *Site) prepare() {
 	site.publish(keys.SolarAdjusted, site.solarAdjusted)
 	site.publish(keys.ResidualPower, site.GetResidualPower())
 	site.publish(keys.GridExportLimit, site.GetGridExportLimit())
+	site.publish(keys.GridImportLimit, site.GetGridImportLimit())
 	site.publish(keys.ProfilePercentile, site.GetProfilePercentile())
 	site.publish(keys.OptimizerRiskProfile, site.GetOptimizerRiskProfile())
 	site.publish(keys.SmartCostAvailable, site.isDynamicTariff(api.TariffUsagePlanner))

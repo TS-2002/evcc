@@ -255,6 +255,8 @@ export interface State {
   residualPower?: number;
   /** Static grid export power limit in W used as optimizer constraint, 0 = disabled. An active HEMS curtailment takes precedence. */
   gridExportLimit?: number;
+  /** Grid import limit as 15-min average in W for battery grid charging, 0 = disabled. */
+  gridImportLimit?: number;
   /** Percentile of the historic energy profiles used for demand prediction in %, e.g. 50 = median. Null uses the average. */
   profilePercentile?: number | null;
   /** Share of green energy in home consumption, between 0 and 1. */

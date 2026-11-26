@@ -1397,6 +1397,26 @@
         }
       }
     },
+    "/gridimportlimit/{power}": {
+      "post": {
+        "operationId": "setGridImportLimit",
+        "summary": "Set grid import limit",
+        "description": "Set the grid import limit as 15-min average in W for battery grid charging. The battery charges with the power the load management circuit and the running slot's import budget allow. 0 disables the limit.",
+        "tags": [
+          "general"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/power"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/NumberResult"
+          }
+        }
+      }
+    },
     "/solaradjusted/{enable}": {
       "post": {
         "operationId": "setSolarAdjusted",
@@ -6034,6 +6054,10 @@
           },
           "gridExportLimit": {
             "description": "Static grid export power limit in W used as optimizer constraint, 0 = disabled. An active HEMS curtailment takes precedence.",
+            "type": "number"
+          },
+          "gridImportLimit": {
+            "description": "Grid import limit as 15-min average in W for battery grid charging, 0 = disabled.",
             "type": "number"
           },
           "profilePercentile": {

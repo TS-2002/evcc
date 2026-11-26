@@ -59,6 +59,7 @@ const (
 
 	// grid settings
 	GridExportLimit = "gridExportLimit"
+	GridImportLimit = "gridImportLimit"
 
 	// forecast settings
 	SolarAdjusted     = "solarAdjusted"

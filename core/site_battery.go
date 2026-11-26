@@ -89,9 +89,19 @@ func (site *Site) updateBatteryMode(batteryGridChargeActive, batteryGridDischarg
 	// a valid measurement they are released to normal, the device controls itself again. Batteries without a
 	// setpoint keep the start/stop gate, released to normal instead of holddischarge.
 	site.batteryPowerTarget = nil
+	prev := site.batteryPowerPrev
+	site.batteryPowerPrev = nil
 	if site.fromTo(batteryMode, api.BatteryCharge) {
 		if names, charge, discharge := site.powerBatteries(); len(names) > 0 {
 			if target, ok := site.batteryChargeTarget(charge, discharge); ok && site.metersValid {
+				site.batteryPowerPrev = new(target)
+
+				// grid and battery are not read at the same instant. Rise only when two cycles agree, fall at
+				// once: noise never adds headroom, and what caution leaves unused the slot budget catches up.
+				if prev != nil {
+					target = min(target, *prev)
+				}
+
 				site.batteryPowerTarget = &target
 			} else {
 				site.log.DEBUG.Println("battery mode: no valid measurement for grid charging, releasing to normal")

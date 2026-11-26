@@ -121,6 +121,7 @@ type Site struct {
 	batteryPowerTarget       *float64                        // Signed grid charge power of power controlled batteries (positive charges), nil = inactive
 	batteryPowerWritten      map[string]batteryPowerSetpoint // Last setpoint written per battery
 	metersValid              bool                            // Meters read without error in this cycle
+	batteryPowerPrev         *float64                        // Battery power target computed in the previous cycle
 	batteryMode              api.BatteryMode                 // Battery mode (runtime only, not persisted)
 	batteryModeExternal      api.BatteryMode                 // Battery mode (external, runtime only, not persisted)
 	batteryModeExternalTimer time.Time                       // Battery mode timer for external control
@@ -138,6 +139,7 @@ type siteState struct {
 	excessDCPower float64            // PV excess DC charge power (hybrid only)
 	auxPower      float64            // Aux power
 	battery       types.BatteryState // Battery cached and published state
+	batteryFailed bool               // a battery power read failed this cycle
 }
 
 // state returns a copy of the cached measurement state
@@ -672,7 +674,14 @@ func (site *Site) publishLoadpoint(id int, key string, val any) {
 }
 
 func (site *Site) collectMeters(key string, meters []config.Device[api.Meter]) []types.Measurement {
+	mm, _ := site.collectMetersFailed(key, meters)
+	return mm
+}
+
+// collectMetersFailed is collectMeters reporting which power reads failed, their power is 0 and no measurement
+func (site *Site) collectMetersFailed(key string, meters []config.Device[api.Meter]) ([]types.Measurement, []bool) {
 	mm := make([]types.Measurement, len(meters))
+	failed := make([]bool, len(meters))
 
 	fun := func(i int, dev config.Device[api.Meter]) {
 		meter := dev.Instance()
@@ -696,6 +705,7 @@ func (site *Site) collectMeters(key string, meters []config.Device[api.Meter]) [
 			mm[i].Power = power
 			site.log.DEBUG.Printf("%s %d power: %.0fW", key, i+1, power)
 		} else if !errors.Is(err, api.ErrNotAvailable) {
+			failed[i] = true
 			if b.Len() > 0 {
 				site.log.ERROR.Println("\n" + b.String())
 			}
@@ -730,7 +740,7 @@ func (site *Site) collectMeters(key string, meters []config.Device[api.Meter]) [
 	}
 	wg.Wait()
 
-	return mm
+	return mm, failed
 }
 
 // updatePvMeters updates pv meters. All measurements are optional.
@@ -804,7 +814,7 @@ func (site *Site) updateBatteryMeters() {
 		return
 	}
 
-	mm := site.collectMeters("battery", site.batteryMeters)
+	mm, failed := site.collectMetersFailed("battery", site.batteryMeters)
 	prev := site.state().battery.Devices
 
 	var maxDischargePower float64
@@ -916,6 +926,7 @@ func (site *Site) updateBatteryMeters() {
 		return *m.ReturnEnergy
 	})
 	site.battery.Devices = mm
+	site.batteryFailed = lo.Contains(failed, true)
 
 	battery := site.battery
 	site.Unlock()

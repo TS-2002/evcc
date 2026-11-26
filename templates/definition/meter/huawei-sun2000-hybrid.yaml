@@ -5,7 +5,7 @@ products:
     description:
       de: SUN2000 Hybrid-Wechselrichter
       en: SUN2000 Hybrid Inverter
-capabilities: ["battery-control", "dim"]
+capabilities: ["battery-control", "battery-power", "dim"]
 requirements:
   description:
     de: |
@@ -685,5 +685,166 @@ render: |
                 address: 47100 # Forcible charge/discharge
                 type: writesingle
                 encoding: uint16
+  # power setpoint: positive discharges, negative charges, 0 holds the battery idle
+  # (forced charge with 0 W). The forced period (47083) expires after 2 minutes,
+  # the inverter then returns to self-consumption; evcc must refresh every cycle.
+  # batterymode normal hands control back and stops the forced mode.
+  batterypower:
+    source: sequence
+    set:
+      # restore both caps to the configured max, a hold mode may have set them to 0
+      - source: go
+        in:
+          - name: rated
+            type: int
+            config:
+              source: cached
+              cache: 1h # rated max is static
+              value:
+                source: modbus
+                {{- include "modbus" . | indent 14 }}
+                register:
+                  address: 37046 # [ESS] Maximum charge power (RO)
+                  type: holding
+                  decode: uint32
+        out:
+          - name: value
+            type: int
+            config:
+              source: modbus
+              {{- include "modbus" . | indent 12 }}
+              register:
+                address: 47075 # Max. Charge Power
+                type: writemultiple
+                encoding: uint32
+        script: |
+          limit := {{ .maxchargepower }}
+          if rated < limit { limit = rated }
+          limit
+      - source: go
+        in:
+          - name: rated
+            type: int
+            config:
+              source: cached
+              cache: 1h # rated max is static
+              value:
+                source: modbus
+                {{- include "modbus" . | indent 14 }}
+                register:
+                  address: 37048 # [ESS] Maximum discharge power (RO)
+                  type: holding
+                  decode: uint32
+        out:
+          - name: value
+            type: int
+            config:
+              source: modbus
+              {{- include "modbus" . | indent 12 }}
+              register:
+                address: 47077 # Max. Discharge Power
+                type: writemultiple
+                encoding: uint32
+        script: |
+          limit := {{ .maxdischargepower }}
+          if rated < limit { limit = rated }
+          limit
+      # charge share of the setpoint, clamped to maxchargepower and the rated max
+      - source: go
+        in:
+          - name: rated
+            type: int
+            config:
+              source: cached
+              cache: 1h # rated max is static
+              value:
+                source: modbus
+                {{- include "modbus" . | indent 14 }}
+                register:
+                  address: 37046 # [ESS] Maximum charge power (RO)
+                  type: holding
+                  decode: uint32
+        out:
+          - name: value
+            type: int
+            config:
+              source: modbus
+              {{- include "modbus" . | indent 12 }}
+              register:
+                address: 47247 # Forcible charge power
+                type: writemultiple
+                encoding: uint32
+        script: |
+          limit := {{ .maxchargepower }}
+          if rated < limit { limit = rated }
+          p := int(-batteryPower)
+          if p < 0 { p = 0 }
+          if p > limit { p = limit }
+          p
+      # discharge share of the setpoint, clamped to maxdischargepower and the rated max
+      - source: go
+        in:
+          - name: rated
+            type: int
+            config:
+              source: cached
+              cache: 1h # rated max is static
+              value:
+                source: modbus
+                {{- include "modbus" . | indent 14 }}
+                register:
+                  address: 37048 # [ESS] Maximum discharge power (RO)
+                  type: holding
+                  decode: uint32
+        out:
+          - name: value
+            type: int
+            config:
+              source: modbus
+              {{- include "modbus" . | indent 12 }}
+              register:
+                address: 47249 # Forcible discharge power
+                type: writemultiple
+                encoding: uint32
+        script: |
+          limit := {{ .maxdischargepower }}
+          if rated < limit { limit = rated }
+          p := int(batteryPower)
+          if p < 0 { p = 0 }
+          if p > limit { p = limit }
+          p
+      - source: const
+        value: 2 # Minutes
+        set:
+          source: modbus
+          {{- include "modbus" . | indent 8 }}
+          register:
+            address: 47083 # Forced charging and discharging period
+            type: writesingle
+            encoding: uint16
+      - source: const
+        value: 0 # duration
+        set:
+          source: modbus
+          {{- include "modbus" . | indent 8 }}
+          register:
+            address: 47246 # Forcible charge/discharge setting mode
+            type: writesingle
+            encoding: uint16
+      - source: go
+        out:
+          - name: value
+            type: int
+            config:
+              source: modbus
+              {{- include "modbus" . | indent 12 }}
+              register:
+                address: 47100 # Forcible charge/discharge
+                type: writesingle
+                encoding: uint16
+        script: |
+          mode := 1 // charge, also holds the battery idle at 0 W
+          if batteryPower > 0 { mode = 2 } // discharge
+          mode
   {{- include "battery-params" . }}
   {{- end }}

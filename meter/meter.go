@@ -36,6 +36,7 @@ func NewConfigurableFromConfig(ctx context.Context, other map[string]any) (api.M
 		LimitSoc              *plugin.Config // optional
 		BatteryMode           *plugin.Config // optional
 		BatteryModes          []string       // optional, modes supported by batteryMode if it cannot report them itself
+		BatteryPower          *plugin.Config // optional, requires batteryMode to hand control back
 	}
 
 	if err := util.DecodeOther(other, &cc); err != nil {
@@ -139,6 +140,20 @@ func NewConfigurableFromConfig(ctx context.Context, other map[string]any) (api.M
 
 		case limitController != nil:
 			implement.Has(m, implement.BatteryController(batteryModesSocLimit, limitController))
+		}
+
+		// a power setpoint needs batteryMode, which hands control back to the device via normal
+		if cc.BatteryPower != nil {
+			if cc.BatteryMode == nil {
+				return nil, errors.New("battery power: requires batterymode")
+			}
+
+			powerS, err := cc.BatteryPower.FloatSetter(ctx, "batteryPower")
+			if err != nil {
+				return nil, fmt.Errorf("battery power: %w", err)
+			}
+
+			implement.Has(m, implement.BatteryPowerController(powerS))
 		}
 
 		return m, nil

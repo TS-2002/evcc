@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-const _CapabilityName = "iso151182mArfid1p3pbattery-controlmeterdimcurtail"
+const _CapabilityName = "iso151182mArfid1p3pbattery-controlmeterdimcurtailbattery-power"
 
-var _CapabilityIndex = [...]uint8{0, 9, 11, 15, 19, 34, 39, 42, 49}
+var _CapabilityIndex = [...]uint8{0, 9, 11, 15, 19, 34, 39, 42, 49, 62}
 
-const _CapabilityLowerName = "iso151182marfid1p3pbattery-controlmeterdimcurtail"
+const _CapabilityLowerName = "iso151182marfid1p3pbattery-controlmeterdimcurtailbattery-power"
 
 func (i Capability) String() string {
 	i -= 1
@@ -33,9 +33,10 @@ func _CapabilityNoOp() {
 	_ = x[CapabilityMeter-(6)]
 	_ = x[CapabilityDim-(7)]
 	_ = x[CapabilityCurtail-(8)]
+	_ = x[CapabilityBatteryPower-(9)]
 }
 
-var _CapabilityValues = []Capability{CapabilityISO151182, CapabilityMilliAmps, CapabilityRFID, Capability1p3p, CapabilityBatteryControl, CapabilityMeter, CapabilityDim, CapabilityCurtail}
+var _CapabilityValues = []Capability{CapabilityISO151182, CapabilityMilliAmps, CapabilityRFID, Capability1p3p, CapabilityBatteryControl, CapabilityMeter, CapabilityDim, CapabilityCurtail, CapabilityBatteryPower}
 
 var _CapabilityNameToValueMap = map[string]Capability{
 	_CapabilityName[0:9]:   CapabilityISO151182,
@@ -46,6 +47,7 @@ var _CapabilityNameToValueMap = map[string]Capability{
 	_CapabilityName[34:39]: CapabilityMeter,
 	_CapabilityName[39:42]: CapabilityDim,
 	_CapabilityName[42:49]: CapabilityCurtail,
+	_CapabilityName[49:62]: CapabilityBatteryPower,
 }
 
 var _CapabilityLowerNameToValueMap = map[string]Capability{
@@ -57,6 +59,7 @@ var _CapabilityLowerNameToValueMap = map[string]Capability{
 	_CapabilityLowerName[34:39]: CapabilityMeter,
 	_CapabilityLowerName[39:42]: CapabilityDim,
 	_CapabilityLowerName[42:49]: CapabilityCurtail,
+	_CapabilityLowerName[49:62]: CapabilityBatteryPower,
 }
 
 var _CapabilityNames = []string{
@@ -68,6 +71,7 @@ var _CapabilityNames = []string{
 	_CapabilityName[34:39],
 	_CapabilityName[39:42],
 	_CapabilityName[42:49],
+	_CapabilityName[49:62],
 }
 
 // CapabilityString retrieves an enum value from the enum constants string name.

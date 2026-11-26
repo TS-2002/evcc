@@ -187,6 +187,8 @@ jobs:
 
   integration-shard:
     name: Integration ${{ matrix.shard }}/3
+    # fork: Depot runners exist only in evcc-io/evcc
+    if: github.repository == 'evcc-io/evcc'
     runs-on: depot-ubuntu-24.04-arm-32
 
     permissions:
@@ -286,7 +288,7 @@ jobs:
   integration:
     name: Integration
     needs: integration-shard
-    if: always()
+    if: always() && github.repository == 'evcc-io/evcc'
     runs-on: depot-ubuntu-24.04-arm
 
     permissions:

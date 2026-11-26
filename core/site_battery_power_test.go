@@ -186,9 +186,7 @@ func TestBatteryGridChargePowerReadFailed(t *testing.T) {
 		batteryMode:   api.BatteryNormal,
 		circuit:       powerCircuit(ctrl, 8000),
 		metersValid:   true,
-		siteState: siteState{battery: types.BatteryState{
-			Devices: []types.Measurement{{Name: "bat", PowerFailed: true}},
-		}},
+		siteState:     siteState{batteryFailed: true},
 	}
 
 	site.updateBatteryMode(true, false, api.Rate{})

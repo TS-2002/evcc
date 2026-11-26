@@ -14,7 +14,8 @@ on:
 
 jobs:
   build:
-    runs-on: depot-ubuntu-24.04-arm
+    # fork: Depot runners exist only in evcc-io/evcc
+    runs-on: ${{ github.repository == 'evcc-io/evcc' && 'depot-ubuntu-24.04-arm' || 'ubuntu-24.04-arm' }}
 
     permissions:
       contents: read

@@ -84,9 +84,21 @@ func (site *Site) updateBatteryMode(batteryGridChargeActive, batteryGridDischarg
 		batteryMode = api.BatteryNormal
 	}
 
-	// load management: don't start grid charging without headroom, stop it when the circuit is over limit
-	if site.fromTo(batteryMode, api.BatteryCharge) && site.batteryChargeExceedsCircuit() {
-		batteryMode = api.BatteryHoldDischarge
+	// load management: a power controlled battery charges with exactly the headroom of the circuit and the
+	// slot's import budget, others don't start without headroom and stop when the circuit is over limit.
+	// normal, not holddischarge: the device controls itself again and may discharge to relieve the circuit
+	site.batteryChargeSetpoint = 0
+	if site.fromTo(batteryMode, api.BatteryCharge) {
+		if site.batteryPowerControlled() {
+			if power := site.batteryChargeHeadroom(); power >= batteryMinChargePower {
+				site.batteryChargeSetpoint = power
+			} else {
+				site.log.DEBUG.Printf("battery mode: no headroom for grid charging (%.0fW)", power)
+				batteryMode = api.BatteryNormal
+			}
+		} else if site.batteryChargeExceedsCircuit() {
+			batteryMode = api.BatteryNormal
+		}
 	}
 
 	// NOTE: applyBatteryMode is always called when charge or discharge mode is active to
@@ -351,6 +363,11 @@ func (site *Site) applyBatteryMode(mode api.BatteryMode) error {
 
 	devices := site.state().battery.Devices
 
+	var shares map[string]float64
+	if site.batteryChargeSetpoint > 0 {
+		shares = site.batteryChargeShares(site.batteryChargeSetpoint)
+	}
+
 	for i, dev := range site.batteryMeters {
 		meter := dev.Instance()
 
@@ -375,6 +392,23 @@ func (site *Site) applyBatteryMode(mode api.BatteryMode) error {
 			}
 			if hold {
 				deviceMode = api.BatteryHoldDischarge
+			}
+		}
+
+		// grid charging with a power setpoint, also while the mode is unchanged: written every cycle,
+		// the device holds it only for a limited time
+		if share, ok := shares[dev.Config().Name]; ok && fromToCharge && deviceMode != api.BatteryHoldDischarge {
+			if bpc, ok := api.Cap[api.BatteryPowerController](meter); ok {
+				if err := bpc.SetBatteryPower(-share); err != nil {
+					if !errors.Is(err, api.ErrNotAvailable) {
+						return err
+					}
+					continue
+				}
+
+				site.batteryModeApplied[dev.Config().Name] = api.BatteryCharge
+				site.log.DEBUG.Printf("set battery %s power: %.0fW", deviceTitleOrName(dev), -share)
+				continue
 			}
 		}
 

@@ -838,6 +838,18 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/NumberResult"
+  /gridimportlimit/{power}:
+    post:
+      operationId: setGridImportLimit
+      summary: Set grid import limit
+      description: "Set the grid import limit as 15-min average in W for battery grid charging. The battery charges with the power the load management circuit and the running slot's import budget allow. 0 disables the limit."
+      tags:
+        - general
+      parameters:
+        - $ref: "#/components/parameters/power"
+      responses:
+        "200":
+          $ref: "#/components/responses/NumberResult"
   /solaradjusted/{enable}:
     post:
       operationId: setSolarAdjusted

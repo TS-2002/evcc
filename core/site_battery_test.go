@@ -611,16 +611,16 @@ func TestBatteryGridChargeCircuit(t *testing.T) {
 		current      float64 // circuit current
 	}{
 		{"start with headroom", api.BatteryNormal, 5000, 0, 5000, 0, api.BatteryCharge, true, false, 0, 0},
-		{"start without headroom", api.BatteryNormal, 5000, 0, 3000, 0, api.BatteryHoldDischarge, true, false, 0, 0},
+		{"start without headroom", api.BatteryNormal, 5000, 0, 3000, 0, api.BatteryNormal, true, false, 0, 0},
 		{"start with unknown power", api.BatteryNormal, 0, 0, 0, 0, api.BatteryCharge, true, false, 0, 0},
-		{"restart after stop needs headroom", api.BatteryHoldDischarge, 0, 4000, 2000, 0, api.BatteryHoldDischarge, true, false, 0, 0},
-		{"no restart with unknown power when over power", api.BatteryHoldDischarge, 0, 0, 0, 12000, api.BatteryHoldDischarge, true, false, 0, 0},
-		{"stop when over power", api.BatteryCharge, 0, 0, 0, 12000, api.BatteryHoldDischarge, true, false, 0, 0},
+		{"restart after stop needs headroom", api.BatteryNormal, 0, 4000, 2000, 0, api.BatteryNormal, true, false, 0, 0},
+		{"no restart with unknown power when over power", api.BatteryNormal, 0, 0, 0, 12000, api.BatteryNormal, true, false, 0, 0},
+		{"stop when over power", api.BatteryCharge, 0, 0, 0, 12000, api.BatteryNormal, true, false, 0, 0},
 		{"keep charging within limit", api.BatteryCharge, 0, 0, 0, 8000, api.BatteryCharge, false, false, 0, 0},
 		{"keep charging over power without meter", api.BatteryCharge, 0, 0, 0, 12000, api.BatteryCharge, false, true, 0, 0},
 		{"start with current headroom", api.BatteryNormal, 5800, 0, 5800, 0, api.BatteryCharge, true, false, 34, 20},
-		{"start without current headroom", api.BatteryNormal, 5800, 0, 5800, 0, api.BatteryHoldDischarge, true, false, 34, 32},
-		{"stop when over current", api.BatteryCharge, 0, 0, 0, 8000, api.BatteryHoldDischarge, true, false, 34, 40},
+		{"start without current headroom", api.BatteryNormal, 5800, 0, 5800, 0, api.BatteryNormal, true, false, 34, 32},
+		{"stop when over current", api.BatteryCharge, 0, 0, 0, 8000, api.BatteryNormal, true, false, 34, 40},
 		{"keep charging over current without meter", api.BatteryCharge, 0, 0, 0, 8000, api.BatteryCharge, false, true, 34, 40},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -672,7 +672,7 @@ func TestBatteryGridChargeCircuit(t *testing.T) {
 
 			assert.Equal(t, tc.expect, site.GetBatteryMode())
 			assert.Equal(t, tc.mode != api.BatteryCharge && tc.expect == api.BatteryCharge, started, "charging started")
-			if tc.mode == api.BatteryCharge && tc.expect == api.BatteryHoldDischarge {
+			if tc.mode == api.BatteryCharge && tc.expect == api.BatteryNormal {
 				assert.Equal(t, 4000.0, site.batteryChargeStopPower, "stop power")
 			}
 
@@ -709,7 +709,7 @@ func TestBatteryGridChargeStopPower(t *testing.T) {
 
 	// idle battery: stop keeps the previous charge power
 	site.updateBatteryMode(true, false, api.Rate{})
-	assert.Equal(t, api.BatteryHoldDischarge, site.GetBatteryMode())
+	assert.Equal(t, api.BatteryNormal, site.GetBatteryMode())
 	assert.Equal(t, 3000.0, site.batteryChargeStopPower)
 
 	// grid charging no longer requested
